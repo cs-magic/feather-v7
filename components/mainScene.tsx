@@ -1,23 +1,5 @@
 import { Cameras, GameObjects, Scene } from "phaser";
 
-function resizeFeather(context: Scene, obj: Phaser.Physics.Matter.Sprite) {
-  context.tweens.add({
-    targets: obj,
-
-    scaleX: 1, // scale horizontally by 200%
-
-    scaleY: 0.1, // scale vertically by 200%
-
-    ease: "Linear", // 'Cubic', 'Elastic', 'Bounce', 'Back'
-
-    duration: 1000,
-
-    repeat: 0, // repeat forever
-
-    yoyo: false,
-  });
-}
-
 export class MainScene extends Scene {
   private helloLabel!: GameObjects.Text;
   private camera!: Cameras.Scene2D.Camera;
@@ -39,13 +21,13 @@ export class MainScene extends Scene {
     const { width, height } = this.sys.game.canvas;
     this.w = width;
     this.h = height;
-    const groundHeight = this.h * 0.1;
+    const groundHeight = Math.ceil(this.h * 0.05);
 
     const rect = this.add.rectangle(
       this.w / 2,
       this.h - groundHeight,
       this.w,
-      groundHeight,
+      2 * groundHeight,
       0xaaaaaa,
       1
     );
@@ -109,6 +91,7 @@ export class MainScene extends Scene {
     const f = this.matter.add.sprite(x, 0, "feather");
     f.setOrigin(0.5, 0.5);
     f.setScale(1, 0.5);
+    f.setBounce(0.001); // 几乎没有弹性
 
     // f.setScale(1, .2ow)
   }

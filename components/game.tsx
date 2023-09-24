@@ -39,7 +39,7 @@ const PhaserGame = () => {
   useGame(gameConfig, parentEl);
 
   return (
-    <div className="container">
+    <div className="bg-cyan-500">
       <div ref={parentEl} />
     </div>
   );
