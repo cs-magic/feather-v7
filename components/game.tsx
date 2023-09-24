@@ -17,6 +17,20 @@ const gameConfig: Types.Core.GameConfig = {
     roundPixels: true,
   },
   scene: MainScene,
+  fps: {
+    min: 30,
+    target: 60,
+  },
+  physics: {
+    default: "matter",
+    matter: {
+      gravity: {
+        x: 0,
+        y: 0.1,
+      },
+      debug: true,
+    },
+  },
 };
 
 // you can place this in a different file if you prefer
