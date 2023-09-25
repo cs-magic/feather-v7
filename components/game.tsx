@@ -1,7 +1,7 @@
-import { useRef } from "react";
-import { useGame } from "../helpers/useGame";
-import { Types } from "phaser";
-import { MainScene } from "./mainScene";
+import { useRef } from "react"
+import { useGame } from "../helpers/useGame"
+import { Types } from "phaser"
+import { MainScene } from "./mainScene"
 
 const gameConfig: Types.Core.GameConfig = {
   width: "100%",
@@ -28,21 +28,21 @@ const gameConfig: Types.Core.GameConfig = {
         x: 0,
         y: 0.1,
       },
-      debug: true,
+      debug: process.env.NODE_ENV === "development",
     },
   },
-};
+}
 
 // you can place this in a different file if you prefer
 const PhaserGame = () => {
-  const parentEl = useRef<HTMLDivElement>(null);
-  useGame(gameConfig, parentEl);
+  const parentEl = useRef<HTMLDivElement>(null)
+  useGame(gameConfig, parentEl)
 
   return (
     <div className="bg-cyan-500">
       <div ref={parentEl} />
     </div>
-  );
-};
+  )
+}
 
-export default PhaserGame;
+export default PhaserGame
