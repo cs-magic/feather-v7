@@ -1,4 +1,4 @@
-import { clamp } from "lodash"
+import { clamp, pull } from "lodash"
 import { Cameras, GameObjects, Scene } from "phaser"
 
 export class MainScene extends Scene {
@@ -8,10 +8,14 @@ export class MainScene extends Scene {
   private nFeathers = 0
 
   public triggerTimer?: Phaser.Time.TimerEvent
-  public w = 0
-  public h = 0
+  public vw = 0
+  public vh = 0
+  private pw = 0 // player
+  private ph = 0
 
   private loadHadoken = false
+  private player?: Phaser.GameObjects.Sprite
+  private keys
 
   init() {
     this.camera = this.cameras.main
@@ -45,35 +49,64 @@ export class MainScene extends Scene {
     this.initFeatherAdd()
     this.initFeatherCollision()
 
+    this.initBackground()
+    this.initPlayer()
+
     this.handleMouseMove()
     this.handleTimer()
-    this.handleShoot()
 
-    const bg = this.add.image(this.w / 2, this.h / 2, "bg")
-    bg.setDisplaySize(this.w, this.h)
-
-    const w = this.w * 0.2
-    const h = w * 1.8
-    const y = this.h - h / 2
-
-    const sprite = this.add.sprite(this.w / 2, y, "char")
-    sprite.setDisplaySize(w, h)
-
-    sprite.setInteractive({ draggable: true })
-    // always on top
-    sprite.setDepth(9999)
-
-    sprite.on("drag", (pointer, dragX, dragY) => {
-      console.log({ dragX, dragY })
-      const x = clamp(dragX, w / 2, this.w - w / 2)
-      sprite.setPosition(x, y)
-    })
+    this.keys = {
+      A: this.input.keyboard.addKey("A"),
+      W: this.input.keyboard.addKey("W"),
+      S: this.input.keyboard.addKey("S"),
+      D: this.input.keyboard.addKey("D"),
+      UP: this.input.keyboard.addKey("UP"),
+      LEFT: this.input.keyboard.addKey("LEFT"),
+      RIGHT: this.input.keyboard.addKey("RIGHT"),
+      DOWN: this.input.keyboard.addKey("DOWN"),
+      SPACE: this.input.keyboard.addKey("SPACE"),
+    }
   }
 
   update(time, delta) {
     this.tick++
     const fps = Math.round((1000 / delta) * 10) / 10
     // console.log({time, delta, tick: this.tick, fps})
+
+    const step = this.vw / 100
+    if (this.keys.A.isDown || this.keys.LEFT.isDown) this.player!.x -= step
+    if (this.keys.D.isDown || this.keys.RIGHT.isDown) this.player!.x += step
+    if (this.keys.SPACE.isDown) this.handleShoot()
+
+    this.updatePlayerX(this.player!.x)
+  }
+
+  private initBackground() {
+    const bg = this.add.image(this.vw / 2, this.vh / 2, "bg")
+    bg.setDisplaySize(this.vw, this.vh)
+  }
+
+  private updatePlayerX(x: number) {
+    this.player!.x = clamp(x, this.pw / 2, this.vw - this.pw / 2)
+  }
+
+  private initPlayer() {
+    this.pw = this.vw * 0.2
+    this.ph = this.pw * 1.8
+    const y = this.vh - this.ph / 2
+
+    const player = this.add.sprite(this.vw / 2, y, "char")
+    player.setDisplaySize(this.pw, this.ph)
+
+    player.setInteractive({ draggable: true })
+    // always on top
+    player.setDepth(9999)
+
+    player.on("drag", (pointer, dragX, dragY) => {
+      console.log({ dragX, dragY })
+      this.updatePlayerX(dragX)
+    })
+    this.player = player
   }
 
   private hadoken() {
@@ -112,9 +145,9 @@ export class MainScene extends Scene {
   }
 
   private drawSectorAnim() {
-    var centerX = this.w / 2
-    var centerY = this.h
-    var radius = (this.h * 3) / 4
+    var centerX = this.player?.x
+    var centerY = this.vh
+    var radius = (this.vh * 3) / 4
 
     const getGraphics = (t: "graphics" | "gale") => {
       let graphics
@@ -132,10 +165,10 @@ export class MainScene extends Scene {
         graphics.fillPath()
       } else {
         graphics = this.add
-          .sprite(this.w / 2, (this.h * 5) / 8, "gale")
+          .sprite(this.player!.x, (this.vh * 5) / 8, "gale")
           .setDisplaySize(
-            (this.h * 3) / 4,
-            ((this.h * 3) / 4 / 2) * Math.sqrt(3) * 1.5
+            (this.vh * 3) / 4,
+            ((this.vh * 3) / 4 / 2) * Math.sqrt(3) * 1.5
           )
       }
       return graphics
@@ -145,7 +178,7 @@ export class MainScene extends Scene {
 
     var mask = this.make.graphics({})
     mask.fillStyle(0xffffff)
-    mask.fillCircle(centerX, centerY, 1)
+    mask.fillCircle(this.player!.x, centerY, 1)
 
     graphics.mask = new Phaser.Display.Masks.GeometryMask(this, mask)
 
@@ -153,7 +186,7 @@ export class MainScene extends Scene {
     this.tweens.add({
       targets: maskRadius,
       value: radius,
-      duration: 1000,
+      duration: 300,
       ease: Phaser.Math.Easing.Expo.Out,
       repeat: 0,
       yoyo: false,
@@ -162,13 +195,13 @@ export class MainScene extends Scene {
         // mask.clear()
         console.log({ target, param })
         mask.clear()
-        mask.fillCircle(centerX, centerY, maskRadius.value)
+        mask.fillCircle(this.player!.x, centerY, maskRadius.value)
       },
       onComplete: () => {
         this.tweens.add({
           targets: maskRadius,
           value: 0,
-          duration: 1000,
+          duration: 200,
           ease: Phaser.Math.Easing.Expo.Out,
           repeat: 0,
           yoyo: false,
@@ -177,7 +210,7 @@ export class MainScene extends Scene {
             // mask.clear()
             console.log({ target, param })
             mask.clear()
-            mask.fillCircle(centerX, centerY, maskRadius.value)
+            mask.fillCircle(this.player!.x, centerY, maskRadius.value)
           },
           onComplete: () => {
             // graphics.destroy()
@@ -190,17 +223,17 @@ export class MainScene extends Scene {
   private initSceneDimension() {
     const { width, height } = this.sys.game.canvas
     console.log({ width, height })
-    this.w = width
-    this.h = height
+    this.vw = width
+    this.vh = height
   }
 
   private initSceneGround = () => {
-    const groundHeight = Math.ceil(this.h * 0.05)
+    const groundHeight = Math.ceil(this.vh * 0.05)
 
     const rect = this.add.rectangle(
-      this.w / 2,
-      this.h - groundHeight,
-      this.w,
+      this.vw / 2,
+      this.vh - groundHeight,
+      this.vw,
       2 * groundHeight,
       0xaaaaaa,
       1
@@ -236,7 +269,7 @@ export class MainScene extends Scene {
     const addFeather = () => {
       this.nFeathers++
       console.log("addFeather")
-      const x = Math.random() * this.w
+      const x = Math.random() * this.vw
       const f = this.matter.add.sprite(x, 0, "feather")
       // 羽毛原图太高了，弄扁一点
       f.setScale(1, 0.5)
@@ -261,6 +294,13 @@ export class MainScene extends Scene {
   }
 
   private handleMouseMove() {
+    // this.input.keyboard
+    //   .addKey(Phaser.Input.Keyboard.KeyCodes.A)
+    //   .on("down", () => {
+    //     console.log("down A")
+    //     if (this.player) this.player.x -= 10
+    //   })
+
     this.input.on(
       "pointermove",
       (pointer) => {
@@ -288,49 +328,41 @@ export class MainScene extends Scene {
   }
 
   private handleShoot() {
-    // Add the space key to the input manager
-    const spaceKey = this.input.keyboard.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE
+    this.drawSectorAnim()
+
+    // A helper function to apply a force from a specific position
+    const applySectorForce = (center, radius, theta, force) => {
+      // For all bodies in the world
+
+      this.matter.world.getAllBodies().forEach((body) => {
+        // Calculate the angle and distance from the center
+        console.log({ body })
+
+        const { position } = body
+        const { x: cx, y: cy } = center
+        const { x: px, y: py } = position
+        const dx = px - cx
+        const dy = cy - py
+
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const angle = Math.atan2(dy, dx) // 与x轴正轴夹角
+
+        if (distance <= radius && Math.abs(Math.PI / 2 - angle) < theta) {
+          // Apply the force to the body
+          // console.log({cx, cy, px, py, dx, dy, radius, theta, distance, angle,})
+          // 当羽毛倾斜的时候，飞的贼快，也不知道为啥！
+          this.matter.applyForceFromAngle(body, 0.1, -angle)
+
+          // this.matter.(body, center, force);
+        }
+      })
+    }
+
+    applySectorForce(
+      { x: this.player?.x, y: this.vh },
+      (this.vh * 3) / 4,
+      Math.PI / 6, // y轴为中心的左右30度内的扇形
+      0.1
     )
-    spaceKey.on("down", () => {
-      console.log("Space key pressed")
-
-      this.drawSectorAnim()
-
-      // A helper function to apply a force from a specific position
-      const applySectorForce = (center, radius, theta, force) => {
-        // For all bodies in the world
-
-        this.matter.world.getAllBodies().forEach((body) => {
-          // Calculate the angle and distance from the center
-          console.log({ body })
-
-          const { position } = body
-          const { x: cx, y: cy } = center
-          const { x: px, y: py } = position
-          const dx = px - cx
-          const dy = cy - py
-
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          const angle = Math.atan2(dy, dx) // 与x轴正轴夹角
-
-          if (distance <= radius && Math.abs(Math.PI / 2 - angle) < theta) {
-            // Apply the force to the body
-            // console.log({cx, cy, px, py, dx, dy, radius, theta, distance, angle,})
-            // 当羽毛倾斜的时候，飞的贼快，也不知道为啥！
-            this.matter.applyForceFromAngle(body, 0.1, -angle)
-
-            // this.matter.(body, center, force);
-          }
-        })
-      }
-
-      applySectorForce(
-        { x: this.w / 2, y: this.h },
-        (this.h * 3) / 4,
-        Math.PI / 6, // y轴为中心的左右30度内的扇形
-        0.1
-      )
-    })
   }
 }
