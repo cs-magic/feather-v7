@@ -1,5 +1,6 @@
 import { clamp, pull } from "lodash"
 import { Cameras, GameObjects, Scene } from "phaser"
+import { number } from "prop-types"
 
 export class MainScene extends Scene {
   private helloLabel!: GameObjects.Text
@@ -16,6 +17,10 @@ export class MainScene extends Scene {
   private loadHadoken = false
   private player?: Phaser.GameObjects.Sprite
   private keys
+
+  private lastDownTime = 0
+  private isDragging = false
+  private isSpacingPressing = false
 
   init() {
     this.camera = this.cameras.main
@@ -52,7 +57,8 @@ export class MainScene extends Scene {
     this.initBackground()
     this.initPlayer()
 
-    this.handleMouseMove()
+    // 用于 debug 的
+    // this.handleMouseMove()
     this.handleTimer()
 
     this.keys = {
@@ -76,7 +82,22 @@ export class MainScene extends Scene {
     const step = this.vw / 100
     if (this.keys.A.isDown || this.keys.LEFT.isDown) this.player!.x -= step
     if (this.keys.D.isDown || this.keys.RIGHT.isDown) this.player!.x += step
-    if (this.keys.SPACE.isDown) this.handleShoot()
+    // 只要按住就会一直feedback
+    if (this.keys.SPACE.isDown) {
+      if (!this.isSpacingPressing) {
+        this.isSpacingPressing = true
+        this.lastDownTime = Date.now()
+      }
+      // console.log("down: ", this.lastDownTime)
+    }
+    if (this.keys.SPACE.isUp) {
+      if (this.isSpacingPressing) {
+        // 不考虑drag了
+        console.log("up: ", Date.now() - this.lastDownTime)
+        this.handleShoot(Date.now() - this.lastDownTime)
+      }
+      this.isSpacingPressing = false
+    }
 
     this.updatePlayerX(this.player!.x)
   }
@@ -103,8 +124,20 @@ export class MainScene extends Scene {
     player.setDepth(9999)
 
     player.on("drag", (pointer, dragX, dragY) => {
-      console.log({ dragX, dragY })
+      console.log("drag: ", { dragX, dragY })
+      this.isDragging = true
       this.updatePlayerX(dragX)
+    })
+    player.on("pointerdown", () => {
+      console.log("down")
+      this.lastDownTime = Date.now()
+    })
+    player.on("pointerup", () => {
+      console.log("up")
+      if (!this.isDragging) {
+        this.handleShoot(Date.now() - this.lastDownTime)
+      }
+      this.isDragging = false
     })
     this.player = player
   }
@@ -144,10 +177,10 @@ export class MainScene extends Scene {
     })
   }
 
-  private drawSectorAnim() {
+  private drawSectorAnim(ratio: number) {
     var centerX = this.player?.x
     var centerY = this.vh
-    var radius = (this.vh * 3) / 4
+    var radius = ((this.vh * 3) / 4) * ratio
 
     const getGraphics = (t: "graphics" | "gale") => {
       let graphics
@@ -167,8 +200,8 @@ export class MainScene extends Scene {
         graphics = this.add
           .sprite(this.player!.x, (this.vh * 5) / 8, "gale")
           .setDisplaySize(
-            (this.vh * 3) / 4,
-            ((this.vh * 3) / 4 / 2) * Math.sqrt(3) * 1.5
+            ((this.vh * 3) / 4) * ratio,
+            ((this.vh * 3) / 4 / 2) * Math.sqrt(3) * 1.5 * ratio
           )
       }
       return graphics
@@ -193,7 +226,7 @@ export class MainScene extends Scene {
       callbackScope: this,
       onUpdate: (tween, target, param) => {
         // mask.clear()
-        console.log({ target, param })
+        // console.log({ target, param })
         mask.clear()
         mask.fillCircle(this.player!.x, centerY, maskRadius.value)
       },
@@ -208,7 +241,7 @@ export class MainScene extends Scene {
           callbackScope: this,
           onUpdate: (tween, target, param) => {
             // mask.clear()
-            console.log({ target, param })
+            // console.log({ target, param })
             mask.clear()
             mask.fillCircle(this.player!.x, centerY, maskRadius.value)
           },
@@ -327,16 +360,19 @@ export class MainScene extends Scene {
     })
   }
 
-  private handleShoot() {
-    this.drawSectorAnim()
+  private handleShoot(duration: number) {
+    const ratio = clamp(duration / 1000, 0.5, 1)
+    console.log({ duration, ratio })
+
+    this.drawSectorAnim(ratio)
 
     // A helper function to apply a force from a specific position
     const applySectorForce = (center, radius, theta, force) => {
       // For all bodies in the world
 
+      // Calculate the angle and distance from the center
       this.matter.world.getAllBodies().forEach((body) => {
-        // Calculate the angle and distance from the center
-        console.log({ body })
+        // console.log({ body })
 
         const { position } = body
         const { x: cx, y: cy } = center
@@ -360,7 +396,7 @@ export class MainScene extends Scene {
 
     applySectorForce(
       { x: this.player?.x, y: this.vh },
-      (this.vh * 3) / 4,
+      ((this.vh * 3) / 4) * ratio,
       Math.PI / 6, // y轴为中心的左右30度内的扇形
       0.1
     )
