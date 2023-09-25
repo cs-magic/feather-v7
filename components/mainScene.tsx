@@ -1,3 +1,4 @@
+import { clamp } from "lodash"
 import { Cameras, GameObjects, Scene } from "phaser"
 
 export class MainScene extends Scene {
@@ -24,6 +25,9 @@ export class MainScene extends Scene {
 
     this.load.image("gale", "/image/gale.png")
 
+    this.load.image("bg", "/assets/skies/gradient29.png")
+    this.load.image("char", "/assets/pics/nayuki.png")
+
     if (this.loadHadoken) {
       this.load.atlas(
         "ryu",
@@ -44,6 +48,26 @@ export class MainScene extends Scene {
     this.handleMouseMove()
     this.handleTimer()
     this.handleShoot()
+
+    const bg = this.add.image(this.w / 2, this.h / 2, "bg")
+    bg.setDisplaySize(this.w, this.h)
+
+    const w = this.w * 0.2
+    const h = w * 1.8
+    const y = this.h - h / 2
+
+    const sprite = this.add.sprite(this.w / 2, y, "char")
+    sprite.setDisplaySize(w, h)
+
+    sprite.setInteractive({ draggable: true })
+    // always on top
+    sprite.setDepth(9999)
+
+    sprite.on("drag", (pointer, dragX, dragY) => {
+      console.log({ dragX, dragY })
+      const x = clamp(dragX, w / 2, this.w - w / 2)
+      sprite.setPosition(x, y)
+    })
   }
 
   update(time, delta) {
